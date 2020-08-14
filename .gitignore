@@ -1,0 +1,4 @@
+*utils.py
+political/docs/*
+*geckodriver*
+*pycache*
