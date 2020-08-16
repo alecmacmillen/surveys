@@ -1,4 +1,6 @@
 *utils.py
 political/docs/*
+political/data/raw/census*
 *geckodriver*
 *pycache*
+.Rproj.user

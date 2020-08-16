@@ -61,8 +61,10 @@ def scrape_raw_data(html):
     for row in rows[1:]:
         # Manually adjust the range based on how many
         # questions you have in the survey (make sure
-        # you're capturing every cell of data)
-        row_data.append(row.findAll('td')[1:15])
+        # you're capturing every cell of data) - this
+        # will be updated based on how you've set your
+        # survey viewing preferences in Qualtrics
+        row_data.append(row.findAll('td')[1:21])
 
     translated_rows = []
     for row in row_data:
@@ -80,7 +82,7 @@ def scrape_raw_data(html):
     return translated_rows
 
 
-def convert_and_export(rows, extension):
+def convert_and_export(rows, survey_id, extension1, extension2):
     '''
     Convert the data to a dataframe and write it out to the 
     specified location.
@@ -91,12 +93,29 @@ def convert_and_export(rows, extension):
       extension (str): end of the file path at which to save
         the processed file.
     '''
-    out_df = pd.DataFrame(rows,
-        columns = ['registered','propensity','pres','gov','sen','party_reg',
-                   'gender','age','hisp','race','educ','pres16','house18','county'])
+    # Update the columns call with the appropriate headers as the
+    # survey questions change
+    metadata_cols = ['survey_id', 'response_id', 'start_date',
+                     'duration', 'lat', 'long', 'random_id']
+    response_cols = ['survey_id', 'response_id', 'registered', 'propensity',
+                     'pres', 'gov', 'sen', 'party_reg', 'age', 'gender', 
+                     'hisp', 'race', 'educ', 'pres16', 'house18', 'county']
 
-    out_path = OUT_PATH_ROOT + extension
-    out_df.to_csv(out_path, index=False)
+    out_df = pd.DataFrame(rows,
+        columns = ['response_id', 'start_date', 'duration', 'long', 'lat', 'registered', 
+                   'propensity', 'pres', 'gov', 'sen', 'party_reg', 'age', 'gender', 
+                   'hisp', 'race', 'educ', 'pres16', 'house18', 'county', 'random_id'])
+    
+    # Define survey_id field and move it to the front of the df
+    out_df.loc[:, 'survey_id'] = survey_id
+    metadata_df = out_df[metadata_cols]
+    response_df = out_df[response_cols]
+
+    out_path_metadata = OUT_PATH_ROOT + extension1
+    out_path_response = OUT_PATH_ROOT + extension2
+
+    metadata_df.to_csv(out_path_metadata, index=False)
+    response_df.to_csv(out_path_response, index=False)
 
 
 def go(args):
@@ -105,14 +124,15 @@ def go(args):
     Called from the command line using the passed-in arguments for
     survey ID and output save path extension.
     '''
-    usage = ("usage: python3 import_raw_from_qualtrics.py <survey_id> <out_path_extension>")
-    if len(args) != 3:
+    usage = ("usage: python3 import_raw_from_qualtrics.py <survey_id> " \
+             "<metadata_path_extension> <response_path_extension>")
+    if len(args) != 4:
         print(usage)
         sys.exit(1)
 
     html = get_survey_webpage(args[1])
     raw_data = scrape_raw_data(html)
-    convert_and_export(raw_data, args[2])
+    convert_and_export(raw_data, args[1], args[2], args[3])
 
 
 if __name__ == "__main__":
