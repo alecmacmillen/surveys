@@ -4,3 +4,4 @@ political/data/raw/census*
 *geckodriver*
 *pycache*
 .Rproj.user
+*.Rhistory*

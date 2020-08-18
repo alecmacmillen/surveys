@@ -98,12 +98,12 @@ def convert_and_export(rows, survey_id, extension1, extension2):
     metadata_cols = ['survey_id', 'response_id', 'start_date',
                      'duration', 'lat', 'long', 'random_id']
     response_cols = ['survey_id', 'response_id', 'registered', 'propensity',
-                     'pres', 'gov', 'sen', 'party_reg', 'age', 'gender', 
+                     'pres', 'gov', 'sen', 'party_reg', 'gender', 'age', 
                      'hisp', 'race', 'educ', 'pres16', 'house18', 'county']
 
     out_df = pd.DataFrame(rows,
         columns = ['response_id', 'start_date', 'duration', 'long', 'lat', 'registered', 
-                   'propensity', 'pres', 'gov', 'sen', 'party_reg', 'age', 'gender', 
+                   'propensity', 'pres', 'gov', 'sen', 'party_reg', 'gender', 'age', 
                    'hisp', 'race', 'educ', 'pres16', 'house18', 'county', 'random_id'])
     
     # Define survey_id field and move it to the front of the df

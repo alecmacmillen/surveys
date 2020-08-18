@@ -1,23 +1,47 @@
-
-
-library(weights)
-library(anesrake)
 library(tidyverse)
 library(tidylog)
 library(assertr)
 library(here)
 library(plotly)
+library(revgeo)
 library(tidycensus)
+library(revgeo)
 rm(list = ls())
+
+# EDA
+# Validate location
+# Filter out non-likely voters
+# Create bar plots of survey vs. population distributions
+
+# WEIGHTED ANALYSIS
+# Crosstabs
+# Toplines
 
 nc.distributions <- read_csv(here::here("political/data/processed/census/cvap_distributions.csv")) %>% 
   filter(geoname == "North Carolina")
 
-responses <- read_csv(here::here("political/data/raw/nc/nc_08-10-20_1_responses.csv"))
+responses <- read_csv(here::here("political/data/raw/nc/nc_08-10-20_1_responses_raw.csv"))
+responses2 <- read_csv(here::here("political/data/raw/nc/nc_08-10-20_2_responses_raw.csv"))
+
+metadata <- read_csv(here::here("political/data/raw/nc/nc_08-10-20_1_metadata_raw.csv"))
+metadata2 <- read_csv(here::here("political/data/raw/nc/nc_08-10-20_2_metadata_raw.csv"))
+
+
+# Validate proportion of responses with lat/lon in North Carolina
+metadata.clean <- metadata %>% 
+  bind_rows(metadata2) %>% 
+  mutate(location = revgeo::revgeo(long, lat)) %>% 
+  separate(location, into = c("address", "city", "state", "zip", "country"), sep = ",") %>% 
+  mutate(state = str_trim(state)) %>% 
+  select(-c(address, city, zip, country))
+
+in.nc <- sum(metadata.clean$state == "North Carolina", na.rm = T) / nrow(metadata.clean)
+
 
 # Function for a "clean" version of the data with binned variables
 responses.clean <- responses %>% 
-  filter(propensity %in% c("I am 100% certain I will vote", "I am likely to vote")) %>% 
+  bind_rows(responses2) %>% 
+  filter(registered == "Yes" & propensity %in% c("I am 100% certain I will vote", "I am likely to vote")) %>% 
   mutate(age_bin = case_when(dplyr::between(age, 18, 29) ~ "18-29",
                              dplyr::between(age, 30, 44) ~ "30-44",
                              dplyr::between(age, 45, 64) ~ "45-64",
@@ -27,7 +51,11 @@ responses.clean <- responses %>%
                                           "Associate degree (e.g. AA, AS)") ~ "no_bachelors",
                               TRUE ~ "bachelors"))
 
+# Save cleaned metadata and response files
+write_csv(metadata.clean, here::here("political/data/processed/nc/nc_08-10-20_metadata_clean.csv"))
+write_csv(responses.clean, here::here("political/data/processed/nc/nc_08-10-20_responses_clean.csv"))
 
+# Calculate sample proportions and stack up against population proportions
 party.prop <- c(sum(responses.clean$party_reg == "Democratic", na.rm=T) / nrow(responses.clean),
                 sum(responses.clean$party_reg == "Republican", na.rm=T) / nrow(responses.clean),
                 sum(responses.clean$party_reg == "Other", na.rm=T) / nrow(responses.clean),
@@ -45,12 +73,13 @@ census.age <- nc.distributions %>% select(p_18_29:p_65_plus) %>% as.numeric()
 age.cats <- names(table(responses.clean$age_bin))
 age.data <- tibble(age.cats, census.age, age.bin.prop)
 
-age.fig <- plot_ly(age.data, x=~age.cats, y=~census.age, type='bar', name='Population', marker=list(color="#ffd700")) %>% 
-  add_trace(y=~age.bin.prop, name='Survey', marker=list(color="#cd34b5")) %>% 
+age.fig <- plot_ly(age.data, x=~age.cats, y=~census.age, type='bar', name='Population', marker=list(color="#fa8775")) %>% 
+  add_trace(y=~age.bin.prop, name='Survey', marker=list(color="#0000ff")) %>% 
   layout(yaxis=list(title='Proportion', tickformat='%'),
-         xaxis=list(title='Age bin'),
+         xaxis=list(title=NA),
          barmode='group',
-         title="Age bin")
+         title="Age bin",
+         legend=list(orientation='h', xanchor='center', x=0.5))
 ###
 
 hisp.prop <- c(sum(responses.clean$hisp == "Yes", na.rm=T) / nrow(responses.clean),
@@ -64,14 +93,16 @@ race.prop <- c(sum(responses.clean$race == "American Indian or Alaska Native", n
 
 census.race <- nc.distributions %>% select(p_am_ind:p_black, p_white) %>% as.numeric()
 race.cats <- names(table(responses.clean$race))
+race.cats <- c("American\nIndian", "Asian", "Black", "White")
 race.data <- tibble(race.cats, census.race, race.prop)
 
-race.fig <- plot_ly(race.data, x=~race.cats, y=~census.race, type='bar', name='Population', marker=list(color="#ffb14e")) %>% 
-  add_trace(y=~race.prop, name='Survey', marker=list(color="#9d02d7")) %>% 
+race.fig <- plot_ly(race.data, x=~race.cats, y=~census.race, type='bar', name='Population', marker=list(color="#fa8775")) %>% 
+  add_trace(y=~race.prop, name='Survey', marker=list(color="#0000ff")) %>% 
   layout(yaxis=list(title='Proportion', tickformat='%'),
-         xaxis=list(title='Race'),
+         xaxis=list(title=NA),
          barmode='group',
-         title="Race")
+         title="Race",
+         legend=list(orientation='h', xanchor='center', x=0.5))
 ###
 
 ###
@@ -87,25 +118,22 @@ census.educ <- c(nc.distributions$p_ms + nc.distributions$p_hs + nc.distribution
                  nc.distributions$p_associates,
                  nc.distributions$p_bachelors,
                  nc.distributions$p_graduate)
-educ.cats <- c("High school degree or equivalent (e.g. GED)",
-               "Some college, no degree",
-               "Associate degree (e.g. AA, AS)",
-               "Bachelor's degree (e.g. BA, BS)",
-               "Graduates")
+educ.cats <- c("High school", "Some college", "Associate", "Bachelor's", "Graduate")
 educ.data <- tibble(educ.cats, census.educ, educ.prop)
 educ.data$educ.cats <- factor(educ.data$educ.cats, 
-                              levels = c("High school degree or equivalent (e.g. GED)",
-                                         "Some college, no degree",
-                                         "Associate degree (e.g. AA, AS)",
-                                         "Bachelor's degree (e.g. BA, BS)",
-                                         "Graduates"))
+                              levels = c("High school",
+                                         "Some college",
+                                         "Associate",
+                                         "Bachelor's",
+                                         "Graduate"))
 
 educ.fig <- plot_ly(educ.data, x=~educ.cats, y=~census.educ, type='bar', name='Population', marker=list(color="#fa8775")) %>% 
   add_trace(y=~educ.prop, name='Survey', marker=list(color="#0000ff")) %>% 
   layout(yaxis=list(title='Proportion', tickformat='%'),
-         xaxis=list(title='Education level'),
+         xaxis=list(title=NA),
          barmode='group',
-         title = "Education")
+         title = "Education",
+         legend = list(orientation='h', xanchor='center', x=0.5))
 ###
 
 
@@ -138,4 +166,6 @@ sen.prop <- c(sum(responses.clean$sen == "Thom Tillis, the Republican", na.rm=T)
 
 
 
-### Combining plots
+
+
+
