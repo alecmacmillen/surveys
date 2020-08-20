@@ -22,9 +22,11 @@ nc.distributions <- read_csv(here::here("political/data/processed/census/cvap_di
 
 responses <- read_csv(here::here("political/data/raw/nc/nc_08-10-20_1_responses_raw.csv"))
 responses2 <- read_csv(here::here("political/data/raw/nc/nc_08-10-20_2_responses_raw.csv"))
+responses3 <- read_csv(here::here("political/data/raw/nc/nc_08-10-20_3_responses_raw.csv"))
 
 metadata <- read_csv(here::here("political/data/raw/nc/nc_08-10-20_1_metadata_raw.csv"))
 metadata2 <- read_csv(here::here("political/data/raw/nc/nc_08-10-20_2_metadata_raw.csv"))
+metadata3 <- read_csv(here::here("political/data/raw/nc/nc_08-10-20_3_metadata_raw.csv"))
 
 
 # Validate proportion of responses with lat/lon in North Carolina
@@ -40,8 +42,11 @@ in.nc <- sum(metadata.clean$state == "North Carolina", na.rm = T) / nrow(metadat
 
 # Function for a "clean" version of the data with binned variables
 responses.clean <- responses %>% 
-  bind_rows(responses2) %>% 
+  bind_rows(responses2, responses3) %>% 
   filter(registered == "Yes" & propensity %in% c("I am 100% certain I will vote", "I am likely to vote")) %>% 
+  # Only filter out unsure / don't remember responses for pres16 if you're actually going to weight on it in the
+  # toplines and crosstabs
+  filter(pres16 != "Unsure / Don't remember") %>% 
   mutate(age_bin = case_when(dplyr::between(age, 18, 29) ~ "18-29",
                              dplyr::between(age, 30, 44) ~ "30-44",
                              dplyr::between(age, 45, 64) ~ "45-64",
@@ -56,15 +61,41 @@ write_csv(metadata.clean, here::here("political/data/processed/nc/nc_08-10-20_me
 write_csv(responses.clean, here::here("political/data/processed/nc/nc_08-10-20_responses_clean.csv"))
 
 # Calculate sample proportions and stack up against population proportions
+### Party registration
 party.prop <- c(sum(responses.clean$party_reg == "Democratic", na.rm=T) / nrow(responses.clean),
                 sum(responses.clean$party_reg == "Republican", na.rm=T) / nrow(responses.clean),
                 sum(responses.clean$party_reg == "Other", na.rm=T) / nrow(responses.clean),
                 sum(responses.clean$party_reg == "Unaffiliated", na.rm=T) / nrow(responses.clean))
+party.reg <- c(2540154 / 7055322, 2113806 / 7055322, 47864 / 7055322, 2353498 / 7055322)
+party.cats <- c("Democratic", "Republican", "Other", "Unaffiliated")
+party.data <- tibble(party.cats, party.reg, party.prop)
 
-sex.prop <- c(sum(responses.clean$gender == "Male", na.rm=T) / nrow(responses.clean),
-              sum(responses.clean$gender == "Female", na.rm=T) / nrow(responses.clean))
-
+party.fig <- plot_ly(party.data, x=~party.cats, y=~party.reg, type='bar', name='Population', marker=list(color="#fa8775")) %>% 
+  add_trace(y=~party.prop, name='Survey', marker=list(color="#0000ff")) %>% 
+  layout(yaxis=list(title='Proportion', tickformat='%'),
+         xaxis=list(title=NA),
+         barmode='group',
+         title='Party registration',
+         legend=list(orientation='h', xanchor='center', x=0.5))
 ###
+
+### Gender
+gender.prop <- c(sum(responses.clean$gender == "Male", na.rm=T) / nrow(responses.clean),
+              sum(responses.clean$gender == "Female", na.rm=T) / nrow(responses.clean))
+census.gender <- nc.distributions %>% select(p_male:p_female) %>% as.numeric()
+gender.cats <- c("Male", "Female")
+gender.data <- tibble(gender.cats, census.gender, gender.prop)
+
+gender.fig <- plot_ly(gender.data, x=~gender.cats, y=~census.gender, type='bar', name='Population', marker=list(color='#fa8775')) %>% 
+  add_trace(y=~gender.prop, name='Survey', marker=list(color='#0000ff')) %>% 
+  layout(yaxis=list(title='Proportion', tickformat='%'),
+         xaxis=list(title=NA),
+         barmode='group',
+         title='Gender',
+         legend=list(orientation='h', xanchor='center', x=0.5))
+
+
+### Age
 age.bin.prop <- c(sum(responses.clean$age_bin == "18-29", na.rm=T) / nrow(responses.clean),
                   sum(responses.clean$age_bin == "30-44", na.rm=T) / nrow(responses.clean),
                   sum(responses.clean$age_bin == "45-64", na.rm=T) / nrow(responses.clean),
@@ -82,10 +113,28 @@ age.fig <- plot_ly(age.data, x=~age.cats, y=~census.age, type='bar', name='Popul
          legend=list(orientation='h', xanchor='center', x=0.5))
 ###
 
+
+
+### Hispanic
 hisp.prop <- c(sum(responses.clean$hisp == "Yes", na.rm=T) / nrow(responses.clean),
                sum(responses.clean$hisp == "No", na.rm=T) / nrow(responses.clean))
+hisp <- nc.distributions %>% select(p_hisp) %>% as.numeric()
+census.hisp <- c(hisp, 1-hisp)
+hisp.cats <- c("Hispanic", "Non-Hispanic")
+hisp.data <- tibble(hisp.cats, census.hisp, hisp.prop)
 
+hisp.fig <- plot_ly(hisp.data, x=~hisp.cats, y=~census.hisp, type='bar', name='Population', marker=list(color="#fa8775")) %>% 
+  add_trace(y=~hisp.prop, name='Survey', marker=list(color='#0000ff')) %>% 
+  layout(yaxis=list(title='Proportion', tickformat='%'),
+         xaxis=list(title=NA),
+         barmode='group',
+         title='Hispanic status',
+         legend=list(orientation='h', xanchor='center', x=0.5))
 ###
+
+
+
+### Race
 race.prop <- c(sum(responses.clean$race == "American Indian or Alaska Native", na.rm=T) / nrow(responses.clean),
                sum(responses.clean$race == "Asian", na.rm=T) / nrow(responses.clean),
                sum(responses.clean$race == "Black or African American", na.rm=T) / nrow(responses.clean),
@@ -105,7 +154,9 @@ race.fig <- plot_ly(race.data, x=~race.cats, y=~census.race, type='bar', name='P
          legend=list(orientation='h', xanchor='center', x=0.5))
 ###
 
-###
+
+
+### Education
 educ.prop <- c(sum(responses.clean$educ == "High school degree or equivalent (e.g. GED)", na.rm=T) / nrow(responses.clean),
                sum(responses.clean$educ == "Some college, no degree", na.rm=T) / nrow(responses.clean),
                sum(responses.clean$educ == "Associate degree (e.g. AA, AS)", na.rm=T) / nrow(responses.clean),
@@ -137,11 +188,27 @@ educ.fig <- plot_ly(educ.data, x=~educ.cats, y=~census.educ, type='bar', name='P
 ###
 
 
-
+### 2016 presidential vote
 pres16.prop <- c(sum(responses.clean$pres16 == "Donald Trump, the Republican", na.rm=T) / nrow(responses.clean),
                  sum(responses.clean$pres16 == "Hillary Clinton, the Democrat", na.rm=T) / nrow(responses.clean),
                  sum(responses.clean$pres16 == "Someone else", na.rm=T) / nrow(responses.clean),
                  sum(responses.clean$pres16 == "Did not vote", na.rm=T) / nrow(responses.clean))
+pres16.cats <- c("Trump", "Clinton", "Other", "Did not vote")
+pres16.actual <- c(2362631 / 6918150, 2189316 / 6918150, (130126 + 47386 + 12105) / 6918150, 2176586 / 6918150)
+pres16.data <- tibble(pres16.cats, pres16.actual, pres16.prop)
+
+pres16.fig <- plot_ly(pres16.data, x=~pres16.cats, y=~pres16.actual, type='bar', name='Population', marker=list(color='#fa8775')) %>% 
+  add_trace(y=~pres16.prop, name='Survey', marker=list(color='#0000ff')) %>% 
+  layout(yaxis=list(title='Proportion', tickformat='%'),
+         xaxis=list(title=NA),
+         barmode='group',
+         title='2016 presidential vote',
+         legend=list(orientation='h', xanchor='center', x=0.5))
+
+###
+
+
+
 
 house18.prop <- c(sum(responses.clean$house18 == "The Republican party candidate", na.rm=T) / nrow(responses.clean),
                   sum(responses.clean$house18 == "The Democratic party candidate", na.rm=T) / nrow(responses.clean),
@@ -149,6 +216,9 @@ house18.prop <- c(sum(responses.clean$house18 == "The Republican party candidate
                   sum(responses.clean$house18 == "Someone else", na.rm=T) / nrow(responses.clean),
                   sum(responses.clean$house18 == "Unsure / Don't remember", na.rm=T) / nrow(responses.clean))
 
+
+
+### Outcome vars
 pres.prop <- c(sum(responses.clean$pres == "Donald Trump, the Republican", na.rm=T) / nrow(responses.clean),
                sum(responses.clean$pres == "Joe Biden, the Democrat", na.rm=T) / nrow(responses.clean),
                sum(responses.clean$pres == "Some other candidate", na.rm=T) / nrow(responses.clean),
