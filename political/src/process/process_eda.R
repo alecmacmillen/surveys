@@ -13,10 +13,6 @@ rm(list = ls())
 # Filter out non-likely voters
 # Create bar plots of survey vs. population distributions
 
-# WEIGHTED ANALYSIS
-# Crosstabs
-# Toplines
-
 nc.distributions <- read_csv(here::here("political/data/processed/census/cvap_distributions.csv")) %>% 
   filter(geoname == "North Carolina")
 
@@ -43,10 +39,7 @@ in.nc <- sum(metadata.clean$state == "North Carolina", na.rm = T) / nrow(metadat
 # Function for a "clean" version of the data with binned variables
 responses.clean <- responses %>% 
   bind_rows(responses2, responses3) %>% 
-  filter(registered == "Yes" & propensity %in% c("I am 100% certain I will vote", "I am likely to vote")) %>% 
-  # Only filter out unsure / don't remember responses for pres16 if you're actually going to weight on it in the
-  # toplines and crosstabs
-  filter(pres16 != "Unsure / Don't remember") %>% 
+  # filter(registered == "Yes" & propensity %in% c("I am 100% certain I will vote", "I am likely to vote")) %>% 
   mutate(age_bin = case_when(dplyr::between(age, 18, 29) ~ "18-29",
                              dplyr::between(age, 30, 44) ~ "30-44",
                              dplyr::between(age, 45, 64) ~ "45-64",
