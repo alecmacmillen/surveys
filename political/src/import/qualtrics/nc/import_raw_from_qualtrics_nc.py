@@ -8,7 +8,7 @@ from utils import password
 import time
 
 LOGIN_URL = 'https://login.qualtrics.com/login?lang=en'
-OUT_PATH_ROOT = '../../../data/raw/'
+OUT_PATH_ROOT = '../../../../data/raw/'
 
 
 def get_survey_webpage(survey_id):

@@ -44,7 +44,7 @@ predM <- imp$predictorMatrix
 method <- imp$method
 
 # Set the predictor matrix to 0 for all variables we don't want to impute
-for (var in names(responses.factors.to.impute)[c(-1:-3,-10:-11,-14:-15)]) {
+for (var in names(responses.factors.to.impute)[c(-3,-10:-11,-14:-15)]) {
   predM[, c(var)] <- 0
 }
 head(predM)
@@ -223,7 +223,7 @@ unweighted.gov.rv <- wpct(rv$gov)
 weighted.gov.rv <- wpct(rv$gov, rv$weightvec)
 tab.gov.rv <- data.frame(unweighted=round(unweighted.gov.rv, 4), 
                          weighted=round(weighted.gov.rv, 4)) %>% 
-  mutate(weighted.moe = 1.98*sqrt((weighted.gov.rv*(1-weighted.gov.rv))/n),
+  mutate(weighted.moe = 1.98*sqrt((weighted.gov.rv*(1-weighted.gov.rv))/n.rv),
          cand = names(table(rv$gov)),
          office = "Governor") %>% 
   select(cand, office, everything())
@@ -232,7 +232,7 @@ unweighted.sen.rv <- wpct(rv$sen)
 weighted.sen.rv <- wpct(rv$sen, rv$weightvec)
 tab.sen.rv <- data.frame(unweighted=round(unweighted.sen.rv, 4), 
                          weighted=round(weighted.sen.rv, 4)) %>% 
-  mutate(weighted.moe = 1.98*sqrt((weighted.sen.rv*(1-weighted.sen.rv))/n),
+  mutate(weighted.moe = 1.98*sqrt((weighted.sen.rv*(1-weighted.sen.rv))/n.rv),
          cand = names(table(rv$sen)),
          office = "US Senator") %>% 
   select(cand, office, everything())
@@ -256,7 +256,7 @@ unweighted.gov.lv <- wpct(lv$gov)
 weighted.gov.lv <- wpct(lv$gov, lv$weightvec)
 tab.gov.lv <- data.frame(unweighted=round(unweighted.gov.lv, 4), 
                          weighted=round(weighted.gov.lv, 4)) %>% 
-  mutate(weighted.moe = 1.98*sqrt((weighted.gov.lv*(1-weighted.gov.lv))/n),
+  mutate(weighted.moe = 1.98*sqrt((weighted.gov.lv*(1-weighted.gov.lv))/n.lv),
          cand = names(table(lv$gov)),
          office = "Governor") %>% 
   select(cand, office, everything())
@@ -265,7 +265,7 @@ unweighted.sen.lv <- wpct(lv$sen)
 weighted.sen.lv <- wpct(lv$sen, lv$weightvec)
 tab.sen.lv <- data.frame(unweighted=round(unweighted.sen.lv, 4), 
                          weighted=round(weighted.sen.lv, 4)) %>% 
-  mutate(weighted.moe = 1.98*sqrt((weighted.sen.lv*(1-weighted.sen.lv))/n),
+  mutate(weighted.moe = 1.98*sqrt((weighted.sen.lv*(1-weighted.sen.lv))/n.lv),
          cand = names(table(lv$sen)),
          office = "US Senator") %>% 
   select(cand, office, everything())
